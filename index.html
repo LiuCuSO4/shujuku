@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>商品管理数据库</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif; background: #f5f6f8; color: #1f2328; padding: 40px 20px; }
+  .wrap { max-width: 860px; margin: 0 auto; }
+  h1 { font-size: 26px; margin: 0 0 6px; }
+  .sub { color: #6b7280; margin: 0 0 24px; font-size: 14px; }
+  .sub code { background: #eef0f3; padding: 2px 6px; border-radius: 4px; }
+  .status { font-size: 14px; color: #6b7280; margin-bottom: 16px; }
+  .card { background: #fff; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,.08); overflow: hidden; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { text-align: left; padding: 12px 16px; font-size: 14px; }
+  thead th { background: #fafbfc; color: #57606a; font-weight: 600; border-bottom: 1px solid #eaecef; }
+  tbody tr { border-bottom: 1px solid #f0f1f3; }
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:hover { background: #f8f9fb; }
+  .price { font-weight: 600; color: #d97706; }
+  .cat { display: inline-block; background: #eef2ff; color: #4f46e5; padding: 2px 10px; border-radius: 999px; font-size: 12px; }
+  .empty, .err { padding: 40px; text-align: center; color: #6b7280; }
+  .err { color: #dc2626; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>商品管理数据库</h1>
+  <p class="sub">数据实时读取自 Supabase (PostgreSQL) · <code>qecxgzyknjqjplrdcgzr.supabase.co</code></p>
+  <div class="status" id="status">正在加载…</div>
+  <div class="card">
+    <table id="tbl" hidden>
+      <thead>
+        <tr><th>编号</th><th>商品名称</th><th>价格</th><th>库存</th><th>分类</th><th>创建时间</th></tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
+    <div class="empty" id="empty" hidden>暂无商品数据</div>
+    <div class="err" id="err" hidden></div>
+  </div>
+</div>
+
+<script>
+const SUPABASE_URL = "https://qecxgzyknjqjplrdcgzr.supabase.co";
+const PUBLISHABLE_KEY = "sb_publishable_xXGjkhZ5WzYv3CAnXnl60A_i3KEHOfe";
+
+const statusEl = document.getElementById("status");
+const tblEl = document.getElementById("tbl");
+const tbodyEl = document.getElementById("tbody");
+const emptyEl = document.getElementById("empty");
+const errEl = document.getElementById("err");
+
+function esc(s) {
+  return String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+function price(p) {
+  if (p === null || p === undefined) return "-";
+  const n = Number(p);
+  return isNaN(n) ? p : n.toFixed(2);
+}
+function date(d) {
+  if (!d) return "-";
+  return String(d).replace("T", " ").slice(0, 16);
+}
+
+async function load() {
+  try {
+    const res = await fetch(SUPABASE_URL + "/rest/v1/products?select=*&order=id", {
+      headers: { apikey: PUBLISHABLE_KEY, Authorization: "Bearer " + PUBLISHABLE_KEY }
+    });
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    const rows = await res.json();
+    if (!rows.length) { statusEl.textContent = ""; emptyEl.hidden = false; return; }
+    tbodyEl.innerHTML = rows.map(p =>
+      "<tr>" +
+        "<td>" + esc(p.id) + "</td>" +
+        "<td>" + esc(p.name) + "</td>" +
+        "<td class='price'>¥" + price(p.price) + "</td>" +
+        "<td>" + esc(p.stock) + "</td>" +
+        "<td>" + (p.category ? "<span class='cat'>" + esc(p.category) + "</span>" : "-") + "</td>" +
+        "<td>" + date(p.created_at) + "</td>" +
+      "</tr>"
+    ).join("");
+    tblEl.hidden = false;
+    statusEl.textContent = "共 " + rows.length + " 件商品";
+  } catch (e) {
+    statusEl.textContent = "";
+    errEl.textContent = "加载失败：" + e.message;
+    errEl.hidden = false;
+  }
+}
+load();
+</script>
+</body>
+</html>
